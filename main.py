@@ -1,3 +1,4 @@
+from operator import ne
 import pygame
 import random
 
@@ -14,57 +15,58 @@ BG_COLOR = "white"
 ROWS, COLS = 10, 10
 CELLS = ROWS * COLS
 CELL_SIZE = 20
-MINES = 5
-
-
-def create_field(mines, cells): 
-    field = [-1]*cells
-    while field.count(9) < mines:
-        field[random.randint(0, cells-1)] = 9
-    return field
-
-field = create_field(MINES, CELLS)
+MINES = 10
 
 face_down = pygame.transform.scale(pygame.image.load("./assets/facingDown.png"), (CELL_SIZE, CELL_SIZE))
 numbers = [pygame.transform.scale(pygame.image.load(f"./assets/{i}.png"), (CELL_SIZE, CELL_SIZE)) for i in range(9)]
 bomb = pygame.transform.scale(pygame.image.load("./assets/bomb.png"), (CELL_SIZE, CELL_SIZE))
 
-
-def count_bombs(row, col):
+def get_neighbours(i):
+    neighbours = []
     DIRECTIONS = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
-    count = 0
+    row, col = i // ROWS, i % ROWS
     for DIR in DIRECTIONS:
         r_to_check = row + DIR[0]
         c_to_check = col + DIR[1]
         if 0 <= r_to_check < ROWS and 0 <= c_to_check < COLS:
-            i = r_to_check * COLS + c_to_check
-            if field[i] == 9:
-                count +=1
-    return count
+            neighbours.append(r_to_check * COLS + c_to_check)
+    return neighbours
 
 
-def draw(win):
+def create_field(mines, cells):
+    field = [0]*cells
+    mine_positions = set()
+    while len(mine_positions) < mines:
+        pos = random.randint(0, cells-1)
+        if pos in mine_positions: continue
+        mine_positions.add(pos)
+        for neighbour in get_neighbours(pos):
+            field[neighbour] += 1
+    
+    for i in mine_positions:
+        field[i] = 9 
+    return field
+
+
+def draw(win, field):
     for i, c in enumerate(field):
-        x = i % ROWS * CELL_SIZE
-        y = i // ROWS * CELL_SIZE
-        if c == -1:
+        x, y = i % ROWS * CELL_SIZE, i // ROWS * CELL_SIZE
+        if c == 0:
             win.blit(face_down, (x, y))
-        elif c in range(9):
+        elif c in range(8):
             win.blit(numbers[c], (x, y))
         else:
             win.blit(bomb, (x, y))
             
+    pygame.display.flip()           
+
 
 def reveal_cell(pos):
-    col = pos[0] // CELL_SIZE
-    row = pos[1] // CELL_SIZE
-    field[row * COLS + col] = count_bombs(row, col)
-    
-
-    
+    pass
 
 
 def run():
+    field = create_field(MINES, CELLS)
     running = True
     while running:
 
@@ -73,14 +75,13 @@ def run():
             if event.type == pygame.QUIT:
                 running = False
 
+            # Game Logic
+
             if event.type == pygame.MOUSEBUTTONUP:
                 pos = pygame.mouse.get_pos()
                 reveal_cell(pos)
-                print(field)
 
-        # Game Logic
-        draw(win)
-        pygame.display.flip()       
+        draw(win, field)
 
     pygame.quit()
 
