@@ -1,4 +1,4 @@
-from operator import ne
+from asyncio import FastChildWatcher
 import pygame
 import random
 
@@ -17,9 +17,33 @@ CELLS = ROWS * COLS
 CELL_SIZE = 20
 MINES = 10
 
-face_down = pygame.transform.scale(pygame.image.load("./assets/facingDown.png"), (CELL_SIZE, CELL_SIZE))
-numbers = [pygame.transform.scale(pygame.image.load(f"./assets/{i}.png"), (CELL_SIZE, CELL_SIZE)) for i in range(9)]
-bomb = pygame.transform.scale(pygame.image.load("./assets/bomb.png"), (CELL_SIZE, CELL_SIZE))
+cell_normal = pygame.transform.scale(pygame.image.load("./assets/cell_normal.gif"), (CELL_SIZE, CELL_SIZE))
+cell_numbers = [pygame.transform.scale(pygame.image.load(f"./assets/cell_{i}.gif"), (CELL_SIZE, CELL_SIZE)) for i in range(9)]
+cell_mine = pygame.transform.scale(pygame.image.load("./assets/cell_mine.gif"), (CELL_SIZE, CELL_SIZE))
+cell_flagged = pygame.transform.scale(pygame.image.load("./assets/cell_marked.gif"), (CELL_SIZE, CELL_SIZE))
+
+class Cell():
+    row: int
+    col: int
+    mine: bool = False
+    selected: bool = False
+    flagged: bool = False
+    mines_around: int = 0
+
+    def __init__(self, row, col):
+        self.row = row
+        self.col = col
+
+    def show(self):
+        pos = self.row * CELL_SIZE, self.col * CELL_SIZE
+        if self.selected:
+            if self.mine:
+                win.blit(cell_mine, pos)
+            else:
+                win.blit(cell_numbers[self.mines_around], pos)
+        else:
+            win.blit(cell_normal, pos)
+
 
 def get_neighbours(i):
     neighbours = []
@@ -34,31 +58,27 @@ def get_neighbours(i):
 
 
 def create_field(mines, cells):
-    field = [0]*cells
+    field = []
+    for row in range(ROWS):
+        for col in range(COLS):
+            field.append(Cell(row, col))
+    
     mine_positions = set()
     while len(mine_positions) < mines:
         pos = random.randint(0, cells-1)
         if pos in mine_positions: continue
         mine_positions.add(pos)
-        for neighbour in get_neighbours(pos):
-            field[neighbour] += 1
-    
-    for i in mine_positions:
-        field[i] = 9 
+        field[pos].mine = True
+        for n in get_neighbours(pos):
+            field[n].mines_around += 1
+
     return field
 
 
-def draw(win, field):
-    for i, c in enumerate(field):
-        x, y = i % ROWS * CELL_SIZE, i // ROWS * CELL_SIZE
-        if c == 0:
-            win.blit(face_down, (x, y))
-        elif c in range(8):
-            win.blit(numbers[c], (x, y))
-        else:
-            win.blit(bomb, (x, y))
-            
-    pygame.display.flip()           
+def draw(field):
+    for cell in field:
+        cell.show()
+    pygame.display.update()
 
 
 def reveal_cell(pos):
@@ -76,12 +96,12 @@ def run():
                 running = False
 
             # Game Logic
-
             if event.type == pygame.MOUSEBUTTONUP:
                 pos = pygame.mouse.get_pos()
-                reveal_cell(pos)
+                i = pos[0] // CELL_SIZE * COLS + (pos[1] // CELL_SIZE)
+                field[i].selected = True
 
-        draw(win, field)
+        draw(field)
 
     pygame.quit()
 
